@@ -69,7 +69,7 @@ internal enum RedisRespStatus {
         
         var attr: pthread_mutexattr_t = pthread_mutexattr_t()
         pthread_mutexattr_init(&attr)
-        pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE)
+        pthread_mutexattr_settype(&attr, Int32(PTHREAD_MUTEX_RECURSIVE))
         
         let error = pthread_mutex_init(&mutex, &attr)
         switch error {
