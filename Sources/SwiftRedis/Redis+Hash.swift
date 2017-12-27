@@ -1,5 +1,5 @@
 /**
- * Copyright IBM Corporation 2016
+ * Copyright IBM Corporation 2016, 2017
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -251,6 +251,39 @@ extension Redis {
         issueCommandInArray(command) {(response: RedisResponse) in
             let (ok, error) = self.redisOkResponseHandler(response, nilOk: false)
             callback(ok, _: error)
+        }
+    }
+    
+    /// Iterates fields of Hash types and their associated values.
+    ///
+    /// - Parameter key: The key of the hash.
+    /// - parameter cursor: Where to begin iterating.
+    /// - parameter match: Glob-style pattern to match elements against.
+    /// - parameter count: Amount of elements to try to iterate.
+    /// - parameter callback: The callback function.
+    /// - parameter newCursor: The new cursor to be used to continue iterating
+    ///                        remaining elements. If 0, all elements have been
+    ///                        iterated.
+    /// - parameter res: The results of the scan.
+    /// - parameter err: The error, if one occured.
+    public func hscan(key: String, cursor: Int, match: String?=nil, count: Int?=nil,
+                      callback: (_ newCursor: RedisString?, _ res: [RedisString?]?, _ err: NSError?) -> Void) {
+        if let match = match, let count = count {
+            issueCommand("HSCAN", key, String(cursor), "MATCH", match, "COUNT", String(count)) {(response: RedisResponse) in
+                self.redisScanResponseHandler(response, callback: callback)
+            }
+        } else if let match = match {
+            issueCommand("HSCAN", key, String(cursor), "MATCH", match) {(response: RedisResponse) in
+                self.redisScanResponseHandler(response, callback: callback)
+            }
+        } else if let count = count {
+            issueCommand("HSCAN", key, String(cursor), "COUNT", String(count)) {(response: RedisResponse) in
+                self.redisScanResponseHandler(response, callback: callback)
+            }
+        } else {
+            issueCommand("HSCAN", key, String(cursor)) {(response: RedisResponse) in
+                self.redisScanResponseHandler(response, callback: callback)
+            }
         }
     }
 

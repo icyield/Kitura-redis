@@ -1,5 +1,5 @@
 /**
- * Copyright IBM Corporation 2016
+ * Copyright IBM Corporation 2016, 2017
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1064,7 +1064,6 @@ public class TestSetCommandsPart2: XCTestCase {
 
                             redis.sscan(self.key2, cursor: 0, match: "f*") {
                             (cursor: RedisString?, retrievedResults: [RedisString?]?, error: NSError?) in
-
                             XCTAssertNil(error)
                             XCTAssertNotNil(cursor)
                             XCTAssertNotNil(retrievedResults)

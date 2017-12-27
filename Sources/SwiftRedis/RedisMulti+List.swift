@@ -1,5 +1,5 @@
 /**
- * Copyright IBM Corporation 2016
+ * Copyright IBM Corporation 2016, 2017
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,13 @@
 import Foundation
 
 /// Extend RedisMulti by adding the List operations
+
+/* NOTE
+ *
+ * Blocking commands in transactions return nil immediately when their list parameters are empty.
+ *
+ * See https://redis.io/commands/blpop
+ */
 extension RedisMulti {
     
     /// Add a BLPOP command to the "transaction"

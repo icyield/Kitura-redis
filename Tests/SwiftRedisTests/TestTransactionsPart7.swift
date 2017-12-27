@@ -1,5 +1,5 @@
 /**
- * Copyright IBM Corporation 2016
+ * Copyright IBM Corporation 2016, 2017
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ import SwiftRedis
 import Foundation
 import XCTest
 
-//Tests the Set operations
+// Tests the List transaction operations
 public class TestTransactionsPart7: XCTestCase {
     static var allTests: [(String, (TestTransactionsPart7) -> () throws -> Void)] {
         return [
@@ -500,13 +500,7 @@ public class TestTransactionsPart7: XCTestCase {
     
     // MARK: - Part 3
     
-    // NOTE
-    //
-    // Blocking commands in transactions return nil immediately when their list parameters are empty.
-    // --as if their timeouts are immediately triggered
-    // --because they block the server and nothing else can push
-    //
-    // See https://redis.io/commands/blpop
+    // SEE NOTE IN RedisMulti+List.swift
     
     func test_blpopBrpopAndBrpoplpushEmptyLists() {
         localSetup() {

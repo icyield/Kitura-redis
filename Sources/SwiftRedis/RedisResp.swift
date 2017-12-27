@@ -1,5 +1,5 @@
 /**
- * Copyright IBM Corporation 2016
+ * Copyright IBM Corporation 2016, 2017
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,17 +23,15 @@ import Foundation
     import Darwin.C
 #endif
 
-
-internal enum RedisRespStatus {
-    case notConnected, connected, error
+enum RedisRespStatus {
+    case notConnected
+    case connected
 }
 
-
- class RedisResp {
+class RedisResp {
     
     private var mutex : pthread_mutex_t = pthread_mutex_t() // with recursive lock can handle multi cmds
     //public let semaphore = DispatchSemaphore(value: 1)
-    
     
     ///
     /// Socket used to talk with the server
@@ -47,21 +45,16 @@ internal enum RedisRespStatus {
     private static let minus = RedisString("-").asData
     private static let plus = RedisString("+").asData
 
-    ///
-    /// State of connection
-    ///
-    internal private(set) var status = RedisRespStatus.notConnected
+    /// State of connection.
+    /// Does not reflect state changes in the event of a disconnect.
+    var status: RedisRespStatus {
+        return socket?.isConnected == true ? .connected : .notConnected
+    }
 
-    internal init(host: String, port: Int32) {
-        do {
-            socket = try Socket.create()
-            try socket!.connect(to: host, port: port)
-            status = .connected
-            
-        } catch {
-            status = .notConnected
-        }
-
+    init(host: String, port: Int32) {
+        socket = try? Socket.create()
+        try? socket?.connect(to: host, port: port)
+        
         mutexInit()
     }
     
@@ -92,7 +85,7 @@ internal enum RedisRespStatus {
         pthread_mutex_unlock(&mutex)
     }
 
-    internal func issueCommand(_ stringArgs: [String], callback: (RedisResponse) -> Void) {
+    func issueCommand(_ stringArgs: [String], callback: (RedisResponse) -> Void) {
         guard let socket = socket else { return }
 
         var buffer = Data()
@@ -117,7 +110,7 @@ internal enum RedisRespStatus {
         }
     }
 
-    internal func issueCommand(_ stringArgs: [RedisString], callback: (RedisResponse) -> Void) {
+    func issueCommand(_ stringArgs: [RedisString], callback: (RedisResponse) -> Void) {
         guard let socket = socket else { return }
 
         var buffer = Data()
@@ -331,11 +324,13 @@ internal enum RedisRespStatus {
 }
 
 private enum RedisRespErrorCode {
-    case EOF, notInteger, notUTF8
+    case EOF
+    case notInteger
+    case notUTF8
 }
 
-fileprivate struct RedisRespError: Error {
-    fileprivate let code: RedisRespErrorCode
+private struct RedisRespError: Error {
+    let code: RedisRespErrorCode
 
     func description() -> String {
         switch(code) {
