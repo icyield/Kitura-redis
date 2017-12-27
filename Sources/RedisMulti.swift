@@ -38,6 +38,13 @@ public class RedisMulti {
     ///
     /// - Parameter callback: a function returning the response in the form of a `RedisResponse`
     public func exec(_ callback: @escaping (RedisResponse) -> Void) {
+        
+        let unlockAndCallback: ((RedisResponse) -> Void) = {(response: RedisResponse) in
+            self.redis.respHandle?.unlock()
+            callback(response)
+        }
+        redis.respHandle?.lock()
+        
         redis.issueCommand("MULTI") {(multiResponse: RedisResponse) in
             switch(multiResponse) {
                 case .Status(let status):
@@ -54,23 +61,23 @@ public class RedisMulti {
                                             // Queue another command to Redis
                                             self.redis.issueCommandInArray(self.queuedCommands[idx], callback: handler!)
                                         } else {
-                                            self.redis.issueCommand("EXEC", callback: callback)
+                                            self.redis.issueCommand("EXEC", callback: unlockAndCallback)
                                         }
                                     } else {
-                                        self.execQueueingFailed(response, callback: callback)
+                                        self.execQueueingFailed(response, callback: unlockAndCallback)
                                     }
                                 default:
-                                    self.execQueueingFailed(response, callback: callback)
+                                    self.execQueueingFailed(response, callback: unlockAndCallback)
                             }
                         }
                         handler = actualHandler
 
                         actualHandler(RedisResponse.Status("QUEUED"))
                     } else {
-                        callback(multiResponse)
+                        unlockAndCallback(multiResponse)
                     }
                 default:
-                    callback(multiResponse)
+                    unlockAndCallback(multiResponse)
             }
         }
     }

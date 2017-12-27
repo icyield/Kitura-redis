@@ -23,7 +23,7 @@ import Foundation
 public class Redis {
 
     /// Redis Serialization Protocol handle
-    private var respHandle: RedisResp?
+    var respHandle: RedisResp?
 
     /// Whether the client is connected or not
     public var connected: Bool {

@@ -17,11 +17,24 @@
 import Socket
 import Foundation
 
+#if os(Linux)
+    import Glibc
+#else
+    import Darwin.C
+#endif
+
+
 internal enum RedisRespStatus {
     case notConnected, connected, error
 }
 
-internal class RedisResp {
+
+ class RedisResp {
+    
+    private var mutex : pthread_mutex_t = pthread_mutex_t() // with recursive lock can handle multi cmds
+    //public let semaphore = DispatchSemaphore(value: 1)
+    
+    
     ///
     /// Socket used to talk with the server
     private var socket: Socket?
@@ -44,9 +57,39 @@ internal class RedisResp {
             socket = try Socket.create()
             try socket!.connect(to: host, port: port)
             status = .connected
+            
         } catch {
             status = .notConnected
         }
+
+        mutexInit()
+    }
+    
+    func mutexInit() {
+        
+        var attr: pthread_mutexattr_t = pthread_mutexattr_t()
+        pthread_mutexattr_init(&attr)
+        pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE)
+        
+        let error = pthread_mutex_init(&mutex, &attr)
+        switch error {
+        case 0:
+            break
+        default:
+            fatalError("Mutex creation error:\(error)")
+        }
+        
+        pthread_mutexattr_destroy(&attr)
+    }
+    
+    func lock() {
+       // _ = semaphore.wait(timeout: DispatchTime.distantFuture)
+        pthread_mutex_lock(&mutex)
+    }
+    
+    func unlock() {
+        //semaphore.signal()
+        pthread_mutex_unlock(&mutex)
     }
 
     internal func issueCommand(_ stringArgs: [String], callback: (RedisResponse) -> Void) {
@@ -62,12 +105,14 @@ internal class RedisResp {
         }
 
         do {
+            lock()
             try socket.write(from: buffer)
-
             readAndParseResponse(callback: callback)
         } catch let error as Socket.Error {
+            unlock()
             callback(RedisResponse.Error("Error sending command to Redis server. Error=\(error.description)"))
         } catch {
+            unlock()
             callback(RedisResponse.Error("Error sending command to Redis server. Unknown error"))
         }
     }
@@ -85,12 +130,15 @@ internal class RedisResp {
         }
 
         do {
+            lock()
             try socket.write(from: buffer)
-
             readAndParseResponse(callback: callback)
+        
         } catch let error as Socket.Error {
+            unlock()
             callback(RedisResponse.Error("Error sending command to Redis server. Error=\(error.description)"))
         } catch {
+            unlock()
             callback(RedisResponse.Error("Error sending command to Redis server. Unknown error."))
         }
     }
@@ -104,12 +152,16 @@ internal class RedisResp {
 
         do {
             (response, offset) = try parseByPrefix(&buffer, from: offset)
+            unlock()
             callback(response)
         } catch let error as Socket.Error {
+            unlock()
             callback(RedisResponse.Error("Error reading from the Redis server. Error=\(error.description)"))
         } catch let error as RedisRespError {
+             unlock()
             callback(RedisResponse.Error("Error reading from the Redis server. Error=\(error.description)"))
         } catch {
+            unlock()
             callback(RedisResponse.Error("Error reading from the Redis server. Unknown error"))
         }
     }
@@ -216,7 +268,6 @@ internal class RedisResp {
                 throw RedisRespError(code: .EOF)
             }
         }
-
         let range = buffer.range(of: with, options: [], in: offset..<offset+with.count)
         if range != nil {
             return (true, offset+with.count)
@@ -228,7 +279,6 @@ internal class RedisResp {
     private func find(_ buffer: inout Data, from: Int, data: Data) throws -> Int {
         var offset = from
         var notFound = true
-
         while notFound {
             let range = buffer.range(of: data, options: [], in: offset..<buffer.count)
             if range != nil {
